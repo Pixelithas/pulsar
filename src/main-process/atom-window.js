@@ -44,30 +44,24 @@ module.exports = class AtomWindow extends EventEmitter {
       this.resolveClosedPromise = resolve;
     });
 
+const forceWindowCapture = process.argv.includes('--force-window-capture');
+
     const options = {
       show: false,
       title: getAppName(),
       tabbingIdentifier: 'atom',
       webPreferences: {
-        // Prevent specs from throttling when the window is in the background:
-        // this should result in faster CI builds, and an improvement in the
-        // local development experience when running specs through the UI (which
-        // now won't pause when e.g. minimizing the window).
         backgroundThrottling: !this.isSpec,
-        // Disable the `auxclick` feature so that `click` events are triggered in
-        // response to a middle-click.
-        // (Ref: https://github.com/atom/atom/pull/12696#issuecomment-290496960)
         disableBlinkFeatures: 'Auxclick',
         nodeIntegration: true,
         contextIsolation: false,
         webviewTag: true,
-
-        // TodoElectronIssue: remote module is deprecated https://www.electronjs.org/docs/breaking-changes#default-changed-enableremotemodule-defaults-to-false
         enableRemoteModule: true,
-        // node support in threads
         nodeIntegrationInWorker: true
       },
-      simpleFullscreen: this.getSimpleFullscreen()
+      simpleFullscreen: this.getSimpleFullscreen(),
+      backgroundColor: forceWindowCapture ? '#FFF' : undefined,
+      transparent: forceWindowCapture ? false : options.transparent
     };
 
     // Don't set icon on Windows so the exe's ico will be used as window and
@@ -288,6 +282,14 @@ module.exports = class AtomWindow extends EventEmitter {
     // Spec window's web view should always have focus
     if (this.isSpec)
       this.browserWindow.on('blur', () => this.browserWindow.focusOnWebView());
+    
+    this.browserWindow.on('minimize', () => {
+      this.browserWindow.hide();
+    });
+
+    this.browserWindow.on('restore', () => {
+      this.browserWindow.show();
+    });
   }
 
   async prepareToUnload() {
